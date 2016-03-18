@@ -1,4 +1,4 @@
-import has from './has';
+import has, { add } from './has';
 import request, { Response } from './request';
 import Promise from './Promise';
 
@@ -18,6 +18,8 @@ function strip(text: string): string {
 
 	return text;
 }
+
+add('host-nashorn', typeof load === 'function' && typeof Packages !== 'undefined');
 
 /*
  * Host-specific method to retrieve text
@@ -42,6 +44,39 @@ else if (has('host-node')) {
 			callback(data);
 		});
 	};
+}
+else if (has('host-nashorn')) {
+	getText = function (url, callback) {
+			let stringBuffer, line,
+				encoding = 'utf-8',
+				file = new java.io.File(url),
+				lineSeparator = java.lang.System.getProperty('line.separator'),
+				input = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(file), encoding)),
+				content = '';
+			try {
+				stringBuffer = new java.lang.StringBuffer();
+				line = input.readLine();
+
+				if (line && line.length() && line.charAt(0) === 0xfeff) {
+					line = line.substring(1);
+				}
+
+				if (line !== null) {
+					stringBuffer.append(line);
+				}
+
+				while ((line = input.readLine()) !== null) {
+					stringBuffer.append(lineSeparator);
+					stringBuffer.append(line);
+				}
+				
+				// Make sure we return a JavaScript string and not a Java string.
+				content = String(stringBuffer.toString()); // String
+			} finally {
+				input.close();
+			}
+			callback(content);
+		};
 }
 else {
 	getText = function(): void {
